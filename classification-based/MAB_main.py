@@ -4,23 +4,25 @@ from Agent_MAB import AutoFeature_agent
 def main_MAB(tables):
 
     # Parameters for the environment
-    base_train_path = "./data3/base.csv_train.csv"
-    base_test_path = "./data3/base.csv_test.csv"
-    repo_train_path = ['./data3/' + i + '_train.csv' for i in tables]
-    repo_test_path = ['./data3/' + i + '_test.csv' for i in tables]
+    base_train_path = "../data/temp_train.csv"
+    base_test_path = "../data/temp_test.csv"
+    repo_train_path = ['../data/' + i + '_train.csv' for i in tables]
+    repo_test_path = ['../data/' + i + '_test.csv' for i in tables]
 
-    index_col = 'DBN'
-    target_col = 'base.csvCLASS'
+    index_col = 'Day'
+    target_col = 'Temperaturetemp'
 
     model_target = 0.60
 
-    max_try_num = 40
+    max_try_num = 10
 
     topl = 3
 
     random_state = 42
 
-    env = AutoFeature_env(base_train_path, base_test_path, repo_train_path, repo_test_path, index_col, target_col, model_target, max_try_num, topl)
+    model = {'LR': {}}
+
+    env = AutoFeature_env(base_train_path, base_test_path, repo_train_path, repo_test_path, index_col, target_col, model_target, model, max_try_num, topl)
 
     res_csv = "./data/result_mab.csv"
 
@@ -33,7 +35,7 @@ def main_MAB(tables):
 
 
 if __name__ == "__main__":
-    tables = ['pm10_daily_summary.csv', 'pm25_frm_daily_summary.csv', 'pressure_daily_summary.csv',
-              'rh_and_dp_daily_summary.csv', 'so2_daily_summary.csv', 'voc_daily_summary.csv', 'wind_daily_summary.csv'
+    tables = ['pm10_daily_summary', 'pm25_frm_daily_summary', 'pressure_daily_summary',
+              'rh_and_dp_daily_summary', 'so2_daily_summary', 'voc_daily_summary', 'wind_daily_summary'
               ]
     main_MAB(tables)

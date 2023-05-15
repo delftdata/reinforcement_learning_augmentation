@@ -5,14 +5,14 @@ import pandas as pd
 import numpy as np
 import xgboost
 from sklearn.metrics import mean_squared_error, roc_auc_score
-
+from autogluon.tabular import TabularPredictor
 
 
 class AutoFeature_env(object):
     """
     The env of AutoFeature
     """
-    def __init__(self, base_train_path, base_test_path, repo_train_path_list, repo_test_path_list, index_col, target_col, target, max_try_num = 5, top_l_feature = 1):
+    def __init__(self, base_train_path, base_test_path, repo_train_path_list, repo_test_path_list, index_col, target_col, target, model, max_try_num = 5, top_l_feature = 1):
         self.base_train_table = pd.read_csv(base_train_path)
         self.base_test_table = pd.read_csv(base_test_path)
 
@@ -48,6 +48,7 @@ class AutoFeature_env(object):
         self.action_space = [i for i in range(len(self.repo_train_table_list))]
         self.action_valid = []
 
+        self.model = model
         self.init_env()
 
 
@@ -124,8 +125,9 @@ class AutoFeature_env(object):
         X_train = tmp_joined_train_table.drop([self.index_col, self.target_col], axis = 1)
         Y_train = tmp_joined_train_table[self.target_col]
         tmp_model = self.model_training(X_train, Y_train)
-        feature_importance_dict = tmp_model.get_booster().get_score(importance_type='weight')
+        feature_importance_dict = self.get_feature_importances(tmp_model, X_train, Y_train)
 
+        feature_importance_dict = feature_importance_dict['importance'].to_dict()
         for col in tmp_org_base_cols:
             if col in feature_importance_dict.keys():
                 del feature_importance_dict[col]
@@ -146,7 +148,7 @@ class AutoFeature_env(object):
             self.action_valid.remove(action)
 
         self.current_training_set = tmp_joined_train_table[list(self.current_training_set.columns) + new_feature_list]
-        self.current_test_set = tmp_joined_train_table[list(self.current_test_set.columns) + new_feature_list]
+        self.current_test_set = tmp_joined_test_table[list(self.current_test_set.columns) + new_feature_list]
 
         # self.repo_train_table_list = self.repo_train_table_list[action].drop(self.index_col, axis = 1)
         self.repo_train_table_list[action] = self.repo_train_table_list[action].drop(new_feature_list, axis = 1)
@@ -183,6 +185,12 @@ class AutoFeature_env(object):
             done = False
             return self.cur_score - self.prev_score, test_auc, done
 
+    def get_feature_importances(self, tmp_model, X_train, Y_train):
+        X_train = X_train.copy()
+        X_train[self.target_col] = Y_train
+        return tmp_model.feature_importance(
+            data=X_train, model=self.current_model.get_model_names()[0], feature_stage="original"
+        )
 
     def get_training_dataset(self):
         X_train = self.current_training_set.drop([self.index_col, self.target_col], axis = 1)
@@ -195,15 +203,17 @@ class AutoFeature_env(object):
         return X_test, Y_test
 
     def model_training(self, X_train, Y_train):
-        new_model = xgboost.XGBClassifier(use_label_encoder=False, eval_metric='rmse')
-        new_model.fit(X_train, Y_train)
-        return new_model
+        X_train = X_train.copy()
+        X_train[self.target_col] = Y_train
+        predictor = TabularPredictor(label=self.target_col,
+                                     problem_type="regression", verbosity=0).fit(train_data=X_train,
+                                                                hyperparameters=self.model)
+        return predictor
 
     def model_test_rmse(self, X_test, Y_test):
-        y_test_pred = self.current_model.predict(X_test)
-
-        rmse_score = roc_auc_score(Y_test, y_test_pred)
-        return rmse_score
+        X_test = X_test.copy()
+        X_test[self.target_col] = Y_test
+        return -1 * self.current_model.evaluate(data=X_test, model=self.current_model.get_model_names()[0])['root_mean_squared_error']
 
     def get_current_features(self):
         cur_train_set_col = list(self.current_training_set.columns)
