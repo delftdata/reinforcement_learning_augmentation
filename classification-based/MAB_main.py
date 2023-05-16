@@ -1,5 +1,9 @@
 from Environment_MAB import AutoFeature_env
 from Agent_MAB import AutoFeature_agent
+from warnings import filterwarnings
+
+filterwarnings("ignore", category=UserWarning)
+filterwarnings("ignore", category=FutureWarning)
 
 def main_MAB(tables):
 
@@ -20,7 +24,7 @@ def main_MAB(tables):
 
     random_state = 42
 
-    model = {'LR': {}}
+    model = {'XGB': {}}
 
     env = AutoFeature_env(base_train_path, base_test_path, repo_train_path, repo_test_path, index_col, target_col, model_target, model, max_try_num, topl)
 

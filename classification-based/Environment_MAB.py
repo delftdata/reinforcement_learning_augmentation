@@ -186,10 +186,10 @@ class AutoFeature_env(object):
             return self.cur_score - self.prev_score, test_auc, done
 
     def get_feature_importances(self, tmp_model, X_train, Y_train):
-        X_train = X_train.copy()
-        X_train[self.target_col] = Y_train
+        train = X_train.copy()
+        train[self.target_col] = Y_train.copy()
         return tmp_model.feature_importance(
-            data=X_train, model=self.current_model.get_model_names()[0], feature_stage="original"
+            data=train, model=tmp_model.get_model_names()[0], feature_stage="original"
         )
 
     def get_training_dataset(self):
@@ -203,17 +203,20 @@ class AutoFeature_env(object):
         return X_test, Y_test
 
     def model_training(self, X_train, Y_train):
-        X_train = X_train.copy()
-        X_train[self.target_col] = Y_train
-        predictor = TabularPredictor(label=self.target_col,
-                                     problem_type="regression", verbosity=0).fit(train_data=X_train,
+        train = X_train.copy()
+        train[self.target_col] = Y_train.copy()
+        predictor = TabularPredictor(label=self.target_col, verbosity=0).fit(train_data=train,
                                                                 hyperparameters=self.model)
         return predictor
 
     def model_test_rmse(self, X_test, Y_test):
-        X_test = X_test.copy()
-        X_test[self.target_col] = Y_test
-        return -1 * self.current_model.evaluate(data=X_test, model=self.current_model.get_model_names()[0])['root_mean_squared_error']
+        test = X_test.copy()
+        test[self.target_col] = Y_test.copy()
+        results = self.current_model.evaluate(data=test, model=self.current_model.get_model_names()[0])
+        if 'accuracy' in results.keys():
+            return abs(results['accuracy'])
+        else:
+            return abs(results['root_mean_squared_error'])
 
     def get_current_features(self):
         cur_train_set_col = list(self.current_training_set.columns)
